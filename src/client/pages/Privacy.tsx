@@ -8,7 +8,7 @@ export default function Privacy() {
 				<div className="card bg-base-100 shadow-md border border-base-200">
 					<div className="card-body prose prose-gray max-w-none">
 						<h1>Privacy Policy</h1>
-						<p className="lead text-base-content/60">Last updated: 2024</p>
+						<p className="lead text-base-content/60">Last updated: May 2026</p>
 
 						<h2>Information We Collect</h2>
 						<p>We collect information you provide when signing in with Google:</p>

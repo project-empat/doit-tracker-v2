@@ -8,7 +8,7 @@ export default function Terms() {
 				<div className="card bg-base-100 shadow-md border border-base-200">
 					<div className="card-body prose prose-gray max-w-none">
 						<h1>Terms of Service</h1>
-						<p className="lead text-base-content/60">Last updated: 2024</p>
+						<p className="lead text-base-content/60">Last updated: May 2026</p>
 
 						<h2>Acceptance of Terms</h2>
 						<p>By using DoIt Tracker, you agree to these terms of service.</p>
