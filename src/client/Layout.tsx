@@ -6,8 +6,10 @@ import {
 	Menu,
 	X,
 	LogOut,
+	Sun,
+	Moon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface SessionUser {
 	id: string;
@@ -21,10 +23,31 @@ interface PageProps {
 	[key: string]: unknown;
 }
 
+const THEME_KEY = "doit:theme";
+
+function getInitialTheme(): string {
+	if (typeof document === "undefined") return "nakamuve";
+	const stored = localStorage.getItem(THEME_KEY);
+	if (stored === "nakamuve" || stored === "nakamuve-dark") return stored;
+	return "nakamuve";
+}
+
 export default function Layout({ children }: { children: React.ReactNode }) {
 	const { props } = usePage<PageProps>();
 	const session = props.session;
 	const [drawerOpen, setDrawerOpen] = useState(false);
+	const [theme, setTheme] = useState(getInitialTheme);
+
+	useEffect(() => {
+		document.documentElement.setAttribute("data-theme", theme);
+		localStorage.setItem(THEME_KEY, theme);
+	}, [theme]);
+
+	const toggleTheme = () => {
+		setTheme((t) =>
+			t === "nakamuve" ? "nakamuve-dark" : "nakamuve",
+		);
+	};
 
 	const navLinks = [
 		{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -46,7 +69,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 							{drawerOpen ? <X size={20} /> : <Menu size={20} />}
 						</button>
 					)}
-					<Link href="/" className="btn btn-ghost text-xl font-bold text-primary">
+					<Link href="/" className="text-xl font-bold text-primary hover:text-primary/80 transition-colors">
 						DoIt Tracker
 					</Link>
 				</div>
@@ -69,7 +92,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 							</ul>
 						</div>
 
-						<div className="navbar-end">
+						<div className="navbar-end gap-1">
+							{/* Theme toggle */}
+							<button
+								onClick={toggleTheme}
+								className="btn btn-ghost btn-circle btn-sm"
+								aria-label="Toggle theme"
+							>
+								{theme === "nakamuve" ? (
+									<Moon size={18} />
+								) : (
+									<Sun size={18} />
+								)}
+							</button>
+
+							{/* User menu */}
 							<div className="dropdown dropdown-end">
 								<div
 									tabIndex={0}
@@ -126,6 +163,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 								</Link>
 							</li>
 						))}
+						<li className="border-t border-base-300 mt-2 pt-2">
+							<button onClick={toggleTheme} className="flex items-center gap-2">
+								{theme === "nakamuve" ? <Moon size={18} /> : <Sun size={18} />}
+								{theme === "nakamuve" ? "Dark mode" : "Light mode"}
+							</button>
+						</li>
 					</ul>
 				</div>
 			)}

@@ -17,6 +17,7 @@
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "^1.39.0",
 		"@cloudflare/workers-types": "^4.20250424.0",
+		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.1.4",
 		"@types/react": "^19.1.0",
 		"@types/react-dom": "^19.1.0",
@@ -36,6 +37,7 @@
 		"@inertiajs/core": "^2.0.0",
 		"@inertiajs/react": "^2.0.0",
 		"drizzle-orm": "^0.42.0",
+		"effect": "^3.21.2",
 		"hono": "^4.7.0",
 		"lucide-react": "^0.501.0",
 		"nanoid": "^5.1.0",
