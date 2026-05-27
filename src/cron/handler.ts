@@ -1,12 +1,8 @@
 import { getDb } from "../db";
-import { habits, habitRecords } from "../db/schema";
-import { eq, and, sql, lt, gte, lte, desc } from "drizzle-orm";
+import type { Habit, HabitRecord } from "../db/schema";
 import { formatDate, createOrUpdateRecord, weeklyMomentum } from "../lib/habits";
 
-export async function processDailyMissed(): Promise<{
-	processed: number;
-	errors: number;
-}> {
+export async function processDailyMissed(): Promise<{ processed: number; errors: number }> {
 	const db = getDb();
 	let processed = 0;
 	let errors = 0;
@@ -17,40 +13,31 @@ export async function processDailyMissed(): Promise<{
 		const yStr = formatDate(yesterday);
 
 		const dailyHabits = await db
-			.select({
-				habitId: habits.id,
-				userId: habits.userId,
-				habitName: habits.name,
-			})
-			.from(habits)
-			.where(and(eq(habits.type, "daily"), sql`${habits.archivedAt} IS NULL`));
+			.prepare("SELECT id AS habit_id, user_id, name AS habit_name FROM habits WHERE type = ? AND archived_at IS NULL")
+			.bind("daily")
+			.all<{ habit_id: string; user_id: string; habit_name: string }>();
 
-		for (const h of dailyHabits) {
+		for (const h of dailyHabits.results) {
 			try {
 				const existing = await db
-					.select()
-					.from(habitRecords)
-					.where(and(eq(habitRecords.habitId, h.habitId), eq(habitRecords.date, yStr)))
-					.limit(1);
+					.prepare("SELECT id FROM habit_records WHERE habit_id = ? AND date = ? LIMIT 1")
+					.bind(h.habit_id, yStr)
+					.first();
 
-				if (existing.length === 0) {
+				if (!existing) {
 					const prev = await db
-						.select()
-						.from(habitRecords)
-						.where(and(eq(habitRecords.habitId, h.habitId), lt(habitRecords.date, yStr)))
-						.orderBy(desc(habitRecords.date))
-						.limit(1);
+						.prepare("SELECT * FROM habit_records WHERE habit_id = ? AND date < ? ORDER BY date DESC LIMIT 1")
+						.bind(h.habit_id, yStr)
+						.first<HabitRecord>();
 
-					const last = prev[0];
 					let momentum = 0;
-
-					if (last) {
-						momentum = last.momentum > 0 ? 0 : Math.max(last.momentum - 1, -3);
+					if (prev) {
+						momentum = prev.momentum > 0 ? 0 : Math.max(prev.momentum - 1, -3);
 					}
 
 					await createOrUpdateRecord({
-						habitId: h.habitId,
-						userId: h.userId,
+						habitId: h.habit_id,
+						userId: h.user_id,
 						date: yStr,
 						completed: 0,
 						momentum,
@@ -58,7 +45,7 @@ export async function processDailyMissed(): Promise<{
 					processed++;
 				}
 			} catch (e) {
-				console.error(`Error processing daily habit ${h.habitId}:`, e);
+				console.error(`Error processing daily habit ${h.habit_id}:`, e);
 				errors++;
 			}
 		}
@@ -70,10 +57,7 @@ export async function processDailyMissed(): Promise<{
 	return { processed, errors };
 }
 
-export async function processWeeklyMissed(): Promise<{
-	processed: number;
-	errors: number;
-}> {
+export async function processWeeklyMissed(): Promise<{ processed: number; errors: number }> {
 	const db = getDb();
 	let processed = 0;
 	let errors = 0;
@@ -92,30 +76,30 @@ export async function processWeeklyMissed(): Promise<{
 		const we = formatDate(lastWeekEnd);
 
 		const weeklyHabits = await db
-			.select()
-			.from(habits)
-			.where(and(eq(habits.type, "weekly"), sql`${habits.archivedAt} IS NULL`));
+			.prepare("SELECT * FROM habits WHERE type = ? AND archived_at IS NULL")
+			.bind("weekly")
+			.all<Habit>();
 
-		for (const h of weeklyHabits) {
+		for (const h of weeklyHabits.results) {
 			try {
 				const weekRecords = await db
-					.select()
-					.from(habitRecords)
-					.where(and(eq(habitRecords.habitId, h.id), gte(habitRecords.date, ws), lte(habitRecords.date, we)));
+					.prepare("SELECT * FROM habit_records WHERE habit_id = ? AND date >= ? AND date <= ?")
+					.bind(h.id, ws, we)
+					.all<HabitRecord>();
 
-				const totalComp = weekRecords.reduce((s, r) => s + r.completed, 0);
-				const wm = await weeklyMomentum(h, h.userId, ws, we);
-				const currentAcc = h.accumulatedMomentum ?? 0;
+				const totalComp = weekRecords.results.reduce((s, r) => s + r.completed, 0);
+				const wm = await weeklyMomentum(h, h.user_id, ws, we);
+				const currentAcc = h.accumulated_momentum ?? 0;
 
 				await db
-					.update(habits)
-					.set({ accumulatedMomentum: currentAcc + wm })
-					.where(eq(habits.id, h.id));
+					.prepare("UPDATE habits SET accumulated_momentum = ? WHERE id = ?")
+					.bind(currentAcc + wm, h.id)
+					.run();
 
-				if (totalComp < (h.targetCount ?? 2)) {
+				if (totalComp < (h.target_count ?? 2)) {
 					await createOrUpdateRecord({
 						habitId: h.id,
-						userId: h.userId,
+						userId: h.user_id,
 						date: we,
 						completed: 0,
 						momentum: wm,
@@ -138,7 +122,6 @@ export async function processWeeklyMissed(): Promise<{
 
 export async function cleanupOldRecords(days = 365): Promise<void> {
 	const db = getDb();
-	const cutoff = new Date();
-	cutoff.setDate(cutoff.getDate() - days);
-	await db.delete(habitRecords).where(lt(habitRecords.date, formatDate(cutoff)));
+	const cutoff = formatDate(new Date(Date.now() - days * 86400000));
+	await db.prepare("DELETE FROM habit_records WHERE date < ?").bind(cutoff).run();
 }

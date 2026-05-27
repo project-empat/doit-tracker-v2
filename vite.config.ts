@@ -9,7 +9,7 @@ export default defineConfig({
 		inertiaPages({
 			pagesDir: "./src/client/pages",
 			outFile: "./src/client/pages.gen.ts",
-			serverModule: "./src/server/index",
+		serverModule: "../server/index",
 		}),
 		tailwindcss(),
 		cloudflare(),

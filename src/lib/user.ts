@@ -1,32 +1,31 @@
 import { getDb } from "../db";
-import { users } from "../db/schema";
-import { eq } from "drizzle-orm";
-
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
+import type { User } from "../db/schema";
 
 export async function getUserById(id: string): Promise<User | undefined> {
 	const db = getDb();
-	const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-	return result[0];
+	const r = await db.prepare("SELECT * FROM users WHERE id = ?").bind(id).first<User>();
+	return r ?? undefined;
 }
 
-export async function getUserByEmail(
-	email: string,
-): Promise<User | undefined> {
+export async function getUserByEmail(email: string): Promise<User | undefined> {
 	const db = getDb();
-	const result = await db
-		.select()
-		.from(users)
-		.where(eq(users.email, email))
-		.limit(1);
-	return result[0];
+	const r = await db.prepare("SELECT * FROM users WHERE email = ?").bind(email).first<User>();
+	return r ?? undefined;
 }
 
-export async function createUser(userData: NewUser): Promise<User> {
+export async function createUser(userData: {
+	id: string;
+	email: string;
+	name: string | null;
+	image: string | null;
+}): Promise<User> {
 	const db = getDb();
-	const result = await db.insert(users).values(userData).returning();
-	return result[0]!;
+	const r = await db
+		.prepare("INSERT INTO users (id, email, name, image) VALUES (?, ?, ?, ?) RETURNING *")
+		.bind(userData.id, userData.email, userData.name, userData.image)
+		.first<User>();
+	if (!r) throw new Error("Failed to create user");
+	return r;
 }
 
 export async function getOrCreateUser(userData: {
@@ -37,15 +36,14 @@ export async function getOrCreateUser(userData: {
 }): Promise<User> {
 	const existing = await getUserByEmail(userData.email);
 	if (existing) {
-		// Update name/image if changed
 		if (existing.name !== userData.name || existing.image !== userData.image) {
 			const db = getDb();
-			const result = await db
-				.update(users)
-				.set({ name: userData.name, image: userData.image })
-				.where(eq(users.email, userData.email))
-				.returning();
-			return result[0]!;
+			const r = await db
+				.prepare("UPDATE users SET name = ?, image = ? WHERE email = ? RETURNING *")
+				.bind(userData.name, userData.image, userData.email)
+				.first<User>();
+			if (!r) throw new Error("Failed to update user");
+			return r;
 		}
 		return existing;
 	}
