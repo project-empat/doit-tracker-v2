@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.dev.vars
+*.db
+*.sqlite
+worker-configuration.d.ts
+.omp
+.wrangler
