@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { Effect } from "effect";
 import { nanoid } from "nanoid";
+import * as v from "valibot";
 import { getSession } from "../auth";
 import { initializeDb, getDb } from "../../db";
 import type { HabitRecord } from "../../db/schema";
@@ -23,12 +24,7 @@ import {
 	toCamelRecord,
 } from "../../lib/habits";
 import { getUserById } from "../../lib/user";
-import {
-	dbEffect,
-	NotFoundError,
-	UnauthorizedError,
-	ValidationError,
-} from "../utils/effect-errors";
+import { dbEffect, NotFoundError, ValidationError } from "../utils/effect-errors";
 import { runEffect } from "../utils/effect-runtime";
 
 type Env = { Bindings: { DB: D1Database } };
@@ -42,17 +38,45 @@ async function requireUserId(c: Context): Promise<string | null> {
 	return u.id as string;
 }
 
+// ─── Validation Schemas ──────────────────────────────────────────────────────
+
+const CreateHabitSchema = v.object({
+	name: v.pipe(v.string(), v.minLength(1, "Name is required")),
+	description: v.optional(v.string()),
+	type: v.union([v.literal("daily"), v.literal("weekly")]),
+	targetCount: v.optional(v.number()),
+});
+
+const ArchiveHabitSchema = v.object({
+	habitId: v.pipe(v.string(), v.minLength(1, "Habit ID required")),
+});
+
+const TrackHabitSchema = v.object({
+	habitId: v.pipe(v.string(), v.minLength(1, "Habit ID required")),
+	completed: v.optional(v.boolean()),
+	date: v.optional(v.string()),
+});
+
+function parseOrFail<T>(schema: v.GenericSchema<T>, input: unknown): Effect.Effect<T, ValidationError> {
+	return Effect.try({
+		try: () => {
+			const result = v.safeParse(schema, input);
+			if (result.success) return result.output;
+			const issues = result.issues.map((i) => `${i.path?.join(".") ?? ""}: ${i.message}`).join("; ");
+			throw new ValidationError({ message: `Validation failed: ${issues}` });
+		},
+		catch: (e) => e instanceof ValidationError ? e : new ValidationError({ message: "Invalid input" }),
+	});
+}
+
 // ─── Dashboard API ───────────────────────────────────────────────────────────
 
 api.get("/dashboard/total-momentum", async (c) => {
 	const userId = await requireUserId(c);
 	if (!userId) return c.json({ error: "Unauthorized" }, 401);
-
 	const env = c.env as { DB: D1Database };
 	initializeDb(env);
-
-	const program = dbEffect(() => totalMomentum(userId));
-	const result = await Effect.runPromise(program);
+	const result = await Effect.runPromise(dbEffect(() => totalMomentum(userId)));
 	return c.json({ totalMomentum: result });
 });
 
@@ -78,7 +102,6 @@ api.get("/dashboard/daily-habits", async (c) => {
 		}
 		return { dailyHabits: results };
 	});
-
 	return runEffect(c, program);
 });
 
@@ -104,7 +127,6 @@ api.get("/dashboard/weekly-habits", async (c) => {
 		}
 		return { weeklyHabits: results, currentWeek: week };
 	});
-
 	return runEffect(c, program);
 });
 
@@ -113,7 +135,6 @@ api.get("/dashboard/momentum-history", async (c) => {
 	if (!userId) return c.json({ error: "Unauthorized" }, 401);
 	const env = c.env as { DB: D1Database };
 	initializeDb(env);
-
 	const program = dbEffect(() => momentumHistory(userId));
 	return runEffect(c, program.pipe(Effect.map((hist) => ({ momentumHistory: hist }))));
 });
@@ -130,12 +151,11 @@ api.post("/habits/create", async (c) => {
 		const dbUser = yield* dbEffect(() => getUserById(userId));
 		if (!dbUser) return yield* Effect.fail(new NotFoundError({ message: "User not found" }));
 
-		const body = yield* Effect.tryPromise({
-			try: () => c.req.json<{ name: string; description?: string; type: "daily" | "weekly"; targetCount?: number }>(),
-			catch: () => new ValidationError({ message: "Invalid request body" }),
+		const raw = yield* Effect.tryPromise({
+			try: () => c.req.json(),
+			catch: () => new ValidationError({ message: "Invalid JSON body" }),
 		});
-
-		if (!body.name) return yield* Effect.fail(new ValidationError({ message: "Name is required" }));
+		const body = yield* parseOrFail(CreateHabitSchema, raw);
 
 		const habit = yield* dbEffect(() =>
 			createHabit({
@@ -146,7 +166,6 @@ api.post("/habits/create", async (c) => {
 		);
 		return { success: true, habit: toCamelHabit(habit) };
 	});
-
 	return runEffect(c, program);
 });
 
@@ -157,11 +176,11 @@ api.post("/habits/archive", async (c) => {
 	initializeDb(env);
 
 	const program = Effect.gen(function* () {
-		const body = yield* Effect.tryPromise({
-			try: () => c.req.json<{ habitId: string }>(),
-			catch: () => new ValidationError({ message: "Invalid request body" }),
+		const raw = yield* Effect.tryPromise({
+			try: () => c.req.json(),
+			catch: () => new ValidationError({ message: "Invalid JSON body" }),
 		});
-		if (!body.habitId) return yield* Effect.fail(new ValidationError({ message: "Habit ID required" }));
+		const body = yield* parseOrFail(ArchiveHabitSchema, raw);
 
 		const habit = yield* dbEffect(() => getHabit(body.habitId));
 		if (!habit || habit.user_id !== userId) return yield* Effect.fail(new NotFoundError({ message: "Habit not found" }));
@@ -169,7 +188,6 @@ api.post("/habits/archive", async (c) => {
 		yield* dbEffect(() => archiveHabit(body.habitId));
 		return { success: true };
 	});
-
 	return runEffect(c, program);
 });
 
@@ -180,11 +198,11 @@ api.post("/habits/track", async (c) => {
 	initializeDb(env);
 
 	const program = Effect.gen(function* () {
-		const body = yield* Effect.tryPromise({
-			try: () => c.req.json<{ habitId: string; completed?: boolean; date?: string }>(),
-			catch: () => new ValidationError({ message: "Invalid request body" }),
+		const raw = yield* Effect.tryPromise({
+			try: () => c.req.json(),
+			catch: () => new ValidationError({ message: "Invalid JSON body" }),
 		});
-		if (!body.habitId) return yield* Effect.fail(new ValidationError({ message: "Habit ID required" }));
+		const body = yield* parseOrFail(TrackHabitSchema, raw);
 
 		const habit = yield* dbEffect(() => getHabit(body.habitId));
 		if (!habit || habit.user_id !== userId) return yield* Effect.fail(new NotFoundError({ message: "Habit not found" }));
@@ -213,7 +231,6 @@ api.post("/habits/track", async (c) => {
 		const record = yield* dbEffect(() => createOrUpdateRecord({ habitId: body.habitId, userId, date, completed }));
 		return { success: true, completed, momentum: record.momentum, record: toCamelRecord(record) };
 	});
-
 	return runEffect(c, program);
 });
 
