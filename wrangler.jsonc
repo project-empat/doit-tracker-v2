@@ -11,12 +11,6 @@
 			"database_id": "dd5b793a-3373-40d2-a347-60f5e96dcd33"
 		}
 	],
-	"routes": [
-		{
-			"pattern": "doit.empat.id",
-			"custom_domain": true
-		}
-	],
 	"triggers": {
 		"crons": ["59 23 * * *"]
 	},
