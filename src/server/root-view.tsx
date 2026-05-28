@@ -37,8 +37,7 @@ export const rootView: RootView = (page, c) => {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title}</title>
-    <link rel="icon" type="image/svg+xml" href="/public/logo.svg" />
-    <link rel="alternate icon" href="/public/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     ${cssTags}${scriptTags}
   </head>
   <body>
