@@ -98,6 +98,7 @@ pages.get("/dashboard", async (c) => {
 	});
 
 	return renderPage(c, "Dashboard", {
+		user: { name: user.name ?? "User", email: user.email, image: user.image },
 		dailyHabits: dailyWithRecords,
 		weeklyHabits: weeklyWithRecords,
 		totalMomentum: total,
