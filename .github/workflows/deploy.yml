@@ -1,0 +1,42 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: SocketDev/action@v1.3.2
+        with:
+          mode: firewall-free
+      - run: sfw npm ci
+      - run: sfw npx tsc --noEmit
+      - run: sfw npm test
+
+  deploy:
+    needs: typecheck
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: SocketDev/action@v1.3.2
+        with:
+          mode: firewall-free
+      - run: sfw npm ci
+      - run: sfw npm run build
+      - name: Deploy to Cloudflare Workers
+        run: sfw npx wrangler deploy --deployment-metadata "GitHub Tag ${{ github.ref_name }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

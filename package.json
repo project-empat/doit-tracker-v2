@@ -36,7 +36,6 @@
 		"@hono/inertia": "^0.2.0",
 		"@inertiajs/core": "^2.0.0",
 		"@inertiajs/react": "^2.0.0",
-		"drizzle-orm": "^0.42.0",
 		"effect": "^3.21.2",
 		"hono": "^4.7.0",
 		"lucide-react": "^0.501.0",
