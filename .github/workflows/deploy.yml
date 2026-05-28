@@ -40,3 +40,4 @@ jobs:
         run: sfw npx wrangler deploy --message "GitHub Tag ${{ github.ref_name }}" --tag ${{ github.ref_name }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
