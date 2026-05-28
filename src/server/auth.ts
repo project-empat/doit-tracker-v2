@@ -70,7 +70,6 @@ function authConfig(c: Context): AuthConfig {
 
 export async function handleAuth(c: Context) {
 	const url = new URL(c.req.url);
-	const action = c.req.param("action") ?? "";
 
 	const headers = new Headers(c.req.raw.headers);
 	const body =
@@ -78,7 +77,7 @@ export async function handleAuth(c: Context) {
 			? await c.req.raw.clone().blob()
 			: undefined;
 
-	const authReq = new Request(`${url.origin}/auth/${action}`, {
+	const authReq = new Request(url.toString(), {
 		method: c.req.method,
 		headers,
 		body,

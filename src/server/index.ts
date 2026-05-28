@@ -21,8 +21,8 @@ const app = new Hono<Env>();
 // Inertia middleware for all page routes
 app.use(inertia({ version: "1", rootView }));
 
-// Auth routes
-app.all("/auth/:action", (c) => handleAuth(c));
+// Auth routes — wildcard to capture /auth/signin/google, /auth/callback/google, etc.
+app.all("/auth/*", (c) => handleAuth(c));
 
 // API routes
 app.route("/api", api);
