@@ -172,7 +172,7 @@ export async function createOrUpdateRecord({
 	const habit = await getHabit(habitId);
 	if (!habit) throw new Error(`Habit ${habitId} not found`);
 
-	let momentumVal = providedMomentum;
+	let momentumVal: number | null = providedMomentum ?? null;
 	let oldMomentum = 0;
 
 	if (habit.type === "daily" && momentumVal === null) {

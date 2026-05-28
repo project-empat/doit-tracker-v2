@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { getSession } from "../auth";
+import type { PageName } from "../../client/pages.gen";
 import { initializeDb, getDb } from "../../db";
 import type { HabitRecord } from "../../db/schema";
 import {
@@ -33,6 +34,18 @@ async function ensureSession(c: Context) {
 	const session = await getSession(c);
 	if (!session) return null;
 	return getUser(session);
+}
+
+function renderPage(
+	c: Context,
+	component: PageName,
+	props: Record<string, unknown>,
+	session?: { id: string; name?: string; email?: string; image?: string } | null,
+) {
+	return c.render(component, {
+		...(session ? { session: { user: { id: session.id, name: session.name, email: session.email, image: session.image } } } : {}),
+		...props,
+	});
 }
 
 pages.get("/", async (c) => {
@@ -84,14 +97,13 @@ pages.get("/dashboard", async (c) => {
 		return { ...toCamelHabit(h), completionsThisWeek, targetMet: completionsThisWeek >= (h.target_count ?? 2), currentMomentum: completionsThisWeek };
 	});
 
-	return c.render("Dashboard", {
-		user: { name: user.name ?? "User", email: user.email, image: user.image },
+	return renderPage(c, "Dashboard", {
 		dailyHabits: dailyWithRecords,
 		weeklyHabits: weeklyWithRecords,
 		totalMomentum: total,
 		momentumHistory: hist,
 		currentWeek: week,
-	});
+	}, user);
 });
 
 // ─── Daily Habits ────────────────────────────────────────────────────────────
@@ -132,7 +144,7 @@ pages.get("/habits/daily", async (c) => {
 		return { ...toCamelHabit(h), todayRecord: rec, currentMomentum: rec?.momentum ?? 0, momentumHistory: history };
 	});
 
-	return c.render("DailyHabits", { habits: habitsWithData });
+	return renderPage(c, "DailyHabits", { habits: habitsWithData }, user);
 });
 
 // ─── Weekly Habits ───────────────────────────────────────────────────────────
@@ -204,7 +216,7 @@ pages.get("/habits/weekly", async (c) => {
 		};
 	});
 
-	return c.render("WeeklyHabits", { habits: habitsWithData, currentWeek });
+	return renderPage(c, "WeeklyHabits", { habits: habitsWithData, currentWeek }, user);
 });
 
 // ─── Static pages ────────────────────────────────────────────────────────────
