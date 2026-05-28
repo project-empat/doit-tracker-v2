@@ -1,5 +1,6 @@
 import { Link, router } from "@inertiajs/react";
 import { Head } from "@inertiajs/react";
+import { apiPost } from "../api";
 import {
 	TrendingUp,
 	CheckCircle2,
@@ -78,16 +79,9 @@ export default function Dashboard({
 	momentumHistory,
 	currentWeek,
 }: Props) {
-	const handleTrack = (habitId: string) => {
-		router.post(
-			"/api/habits/track",
-			{ habitId },
-			{
-				preserveScroll: true,
-				preserveState: true,
-				onSuccess: () => router.reload(),
-			},
-		);
+	const handleTrack = async (habitId: string) => {
+		await apiPost("/api/habits/track", { habitId });
+		router.reload();
 	};
 
 	return (

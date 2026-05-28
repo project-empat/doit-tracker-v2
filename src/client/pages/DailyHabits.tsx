@@ -9,6 +9,7 @@ import {
 	TrendingUp,
 } from "lucide-react";
 import MomentumChart from "../MomentumChart";
+import { apiPost } from "../api";
 
 interface HabitRecord {
 	id: string;
@@ -46,51 +47,39 @@ export default function DailyHabits({ habits }: Props) {
 		day: "numeric",
 	});
 
-	const handleCreate = (e: React.FormEvent) => {
+	const handleCreate = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!name.trim()) return;
 
-		router.post(
-			"/api/habits/create",
-			{ name: name.trim(), description: description.trim() || null, type: "daily" },
-			{
-				preserveScroll: true,
-				preserveState: true,
-				onSuccess: () => {
-					setShowCreate(false);
-					setName("");
-					setDescription("");
-					setError("");
-					router.reload();
-				},
-				onError: (err) => setError(String(err)),
-			},
-		);
+		try {
+			const res = await apiPost("/api/habits/create", {
+				name: name.trim(),
+				description: description.trim() || null,
+				type: "daily",
+			});
+			if ((res as Record<string, unknown>).success) {
+				setShowCreate(false);
+				setName("");
+				setDescription("");
+				setError("");
+				router.reload();
+			} else {
+				setError(String((res as Record<string, unknown>).error ?? "Failed"));
+			}
+		} catch (err) {
+			setError(String(err));
+		}
 	};
 
-	const handleTrack = (habitId: string) => {
-		router.post(
-			"/api/habits/track",
-			{ habitId },
-			{
-				preserveScroll: true,
-				preserveState: true,
-				onSuccess: () => router.reload(),
-			},
-		);
+	const handleTrack = async (habitId: string) => {
+		await apiPost("/api/habits/track", { habitId });
+		router.reload();
 	};
 
-	const handleArchive = (habitId: string) => {
+	const handleArchive = async (habitId: string) => {
 		if (!confirm("Archive this habit? It will be hidden from view.")) return;
-		router.post(
-			"/api/habits/archive",
-			{ habitId },
-			{
-				preserveScroll: true,
-				preserveState: true,
-				onSuccess: () => router.reload(),
-			},
-		);
+		await apiPost("/api/habits/archive", { habitId });
+		router.reload();
 	};
 
 	return (
@@ -117,9 +106,7 @@ export default function DailyHabits({ habits }: Props) {
 						<div className="card-body">
 							<h2 className="card-title">Create New Daily Habit</h2>
 							<form onSubmit={handleCreate} className="space-y-4">
-								{error && (
-									<div className="alert alert-error">{error}</div>
-								)}
+								{error && <div className="alert alert-error">{error}</div>}
 								<fieldset className="fieldset">
 									<legend className="fieldset-legend">Habit Name</legend>
 									<input

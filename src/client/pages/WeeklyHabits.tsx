@@ -10,6 +10,7 @@ import {
 	CalendarDays,
 } from "lucide-react";
 import MomentumChart from "../MomentumChart";
+import { apiPost } from "../api";
 
 interface HabitRecord {
 	id: string;
@@ -61,54 +62,39 @@ export default function WeeklyHabits({ habits, currentWeek }: Props) {
 	const handleCreate = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!name.trim()) return;
-
-		router.post(
-			"/api/habits/create",
-			{
+		(async () => {
+			try {
+				const res = await apiPost("/api/habits/create", {
 				name: name.trim(),
 				description: description.trim() || null,
 				type: "weekly",
 				targetCount: Math.max(2, targetCount),
-			},
-			{
-				preserveScroll: true,
-				preserveState: true,
-				onSuccess: () => {
+				});
+				if ((res as Record<string, unknown>).success) {
 					setShowCreate(false);
 					setName("");
 					setDescription("");
 					setTargetCount(2);
 					setError("");
 					router.reload();
-				},
-				onError: (err) => setError(String(err)),
-			},
-		);
+				} else {
+					setError(String((res as Record<string, unknown>).error ?? "Failed"));
+				}
+			} catch (err) {
+				setError(String(err));
+			}
+		})();
 	};
 
-	const handleTrack = (habitId: string, date: string) => {
-		router.post(
-			"/api/habits/track",
-			{ habitId, date },
-			{
-				preserveScroll: true,
-				preserveState: true,
-				onSuccess: () => router.reload(),
-			},
-		);
+	const handleTrack = async (habitId: string, date: string) => {
+		await apiPost("/api/habits/track", { habitId, date });
+					router.reload();
 	};
 
-	const handleArchive = (habitId: string) => {
+	const handleArchive = async (habitId: string) => {
 		if (!confirm("Archive this habit? It will be hidden from view.")) return;
-		router.post(
-			"/api/habits/archive",
-			{ habitId },
-			{
-				preserveScroll: true,
-				preserveState: true,
-				onSuccess: () => router.reload(),
-			},
-		);
+		await apiPost("/api/habits/archive", { habitId });
+					router.reload();
 	};
 
 	const isCompletedOnDate = (habit: Habit, dateStr: string) => {
