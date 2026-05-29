@@ -434,7 +434,19 @@ export async function buildMomentumHistory(
 
 	const dailyAcc = new Map<string, number>();
 	const weeklyAcc = new Map<string, number>();
-	for (const h of daily) dailyAcc.set(h.id, 0);
+	// Initialize each daily habit's running momentum to its last record before the window
+	// This ensures momentum built up before the 30-day window is reflected in totals
+	for (const h of daily) {
+		const recs = byHabit.get(h.id) ?? [];
+		let lastM = 0;
+		for (let i = recs.length - 1; i >= 0; i--) {
+			if (recs[i]!.date < startStr) {
+				lastM = recs[i]!.momentum;
+				break;
+			}
+		}
+		dailyAcc.set(h.id, lastM);
+	}
 	for (const h of weekly) weeklyAcc.set(h.id, h.accumulated_momentum ?? 0);
 
 	const processedWeeks = new Map<string, Set<string>>();
@@ -455,10 +467,8 @@ export async function buildMomentumHistory(
 			const key = `${h.id}_${ds}`;
 			const rec = byDate.get(key);
 			if (rec && rec.date >= startStr && rec.date <= endStr) {
-				const prevKey = `${h.id}_${formatDate(new Date(new Date(ds).getTime() - 86400000))}`;
-				const prev = byDate.get(prevKey);
-				const delta = rec.momentum - (prev?.momentum ?? 0);
-				dailyAcc.set(h.id, (dailyAcc.get(h.id) ?? 0) + delta);
+				// Update running momentum to the actual record value
+				dailyAcc.set(h.id, rec.momentum);
 			}
 			dM += dailyAcc.get(h.id) ?? 0;
 		}
@@ -482,7 +492,8 @@ export async function buildMomentumHistory(
 				const tgt = h.target_count ?? 2;
 
 				const wm = calcWeeklyMomentum(c, cp, tgt, hrs, week.start);
-				weeklyAcc.set(h.id, (weeklyAcc.get(h.id) ?? 0) + wm);
+				// Replace, don't accumulate — each week's momentum is the independent score
+				weeklyAcc.set(h.id, wm);
 			}
 			wM += weeklyAcc.get(h.id) ?? 0;
 		}

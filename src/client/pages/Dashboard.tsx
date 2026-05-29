@@ -155,8 +155,8 @@ export default function Dashboard({
 													<div className="flex-1 min-w-0">
 														<p className="font-medium truncate">{habit.name}</p>
 														<div className="flex items-center gap-2 mt-1">
-															<span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${habitMomentumClass(habit.accumulatedMomentum ?? 0)}`}>
-																{habit.accumulatedMomentum ?? 0}
+													<span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${habitMomentumClass(habit.currentMomentum ?? 0)}`}>
+														{habit.currentMomentum ?? 0}
 															</span>
 															<span className="text-xs text-base-content/50">
 																{habit.isEffectivelyCompleted ? (
@@ -210,8 +210,8 @@ export default function Dashboard({
 													<div className="flex-1 min-w-0">
 														<p className="font-medium truncate">{habit.name}</p>
 														<div className="flex items-center gap-2 mt-1">
-															<span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${habitMomentumClass(habit.accumulatedMomentum ?? 0)}`}>
-																{habit.accumulatedMomentum ?? 0}
+													<span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${habitMomentumClass(habit.currentMomentum ?? 0)}`}>
+														{habit.currentMomentum ?? 0}
 															</span>
 															<span className="text-xs text-base-content/50">
 																{habit.completionsThisWeek ?? 0} / {habit.targetCount ?? 2} completed

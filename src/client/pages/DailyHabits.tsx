@@ -167,7 +167,7 @@ export default function DailyHabits({ habits }: Props) {
 										</div>
 										<div className="flex items-center gap-2 shrink-0">
 											<span className="badge badge-outline badge-lg">
-												{habit.accumulatedMomentum ?? 0}
+												{habit.currentMomentum ?? 0}
 											</span>
 											{habit.todayRecord?.completed ? (
 												<button
