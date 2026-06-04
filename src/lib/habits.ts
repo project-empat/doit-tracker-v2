@@ -197,26 +197,24 @@ export async function createOrUpdateRecord({
 		}
 	}
 
-	let record: HabitRecord;
-
+	// Keep oldMomentum for daily delta computation before the write
 	if (existing) {
 		oldMomentum = existing.momentum;
-		const r = await db
-			.prepare("UPDATE habit_records SET completed = ?, momentum = ? WHERE habit_id = ? AND date = ? RETURNING *")
-			.bind(completed, momentumVal ?? existing.momentum, habitId, stdDate)
-			.first<HabitRecord>();
-		if (!r) throw new Error("Failed to update record");
-		record = r;
-	} else {
-		const r = await db
-			.prepare(
-				"INSERT INTO habit_records (id, habit_id, user_id, date, completed, momentum, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *",
-			)
-			.bind(nanoid(), habitId, userId, stdDate, completed, momentumVal ?? 0, new Date().toISOString())
-			.first<HabitRecord>();
-		if (!r) throw new Error("Failed to create record");
-		record = r;
 	}
+
+	// Fallback: if momentum wasn't computed (e.g. weekly, or explicitly null), preserve existing or default to 0
+	if (momentumVal === null) {
+		momentumVal = existing?.momentum ?? 0;
+	}
+
+	// Atomic UPSERT eliminates TOCTOU race between check and write
+	const record = await db
+			.prepare(
+			"INSERT INTO habit_records (id, habit_id, user_id, date, completed, momentum, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(habit_id, date) DO UPDATE SET completed = excluded.completed, momentum = excluded.momentum RETURNING *",
+			)
+		.bind(nanoid(), habitId, userId, stdDate, completed, momentumVal, new Date().toISOString())
+			.first<HabitRecord>();
+	if (!record) throw new Error("Failed to upsert record");
 
 	if (habit.type === "daily") {
 		const delta = record.momentum - oldMomentum;
